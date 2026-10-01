@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pod-server
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pod-server
+  template:
+    metadata:
+      labels:
+        app: pod-server
+    spec:
+      terminationGracePeriodSeconds: 5
+      tolerations:
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 10
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: pod-server
+      containers:
+        - name: server
+          image: stubline-kind-failover:0.1.0
+          imagePullPolicy: Never
+          env:
+            - name: SPIKE_BIND_ADDRESS
+              value: "0.0.0.0"
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pod-server
+spec:
+  selector:
+    app: pod-server
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: pod-server
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: pod-server
