@@ -8,6 +8,7 @@ log=$(mktemp)
 cleanup() { docker start "$node" >/dev/null 2>&1 || true; kill "$client" 2>/dev/null || true; wait "$client" 2>/dev/null || true; rm -f "$log"; }
 trap cleanup EXIT
 sleep 5
+grep -q 'status=200' "$log" || { echo 'Client never reached the Service' >&2; exit 1; }
 start=$(date +%s)
 docker stop "$node" >/dev/null
 not_ready=
@@ -20,7 +21,7 @@ done
 replaced=
 for i in {1..120}; do
   ready=$(.tools/kubectl get deployment pod-server -o jsonpath='{.status.readyReplicas}')
-  on_failed=$(.tools/kubectl get pods -l app=pod-server -o wide | grep -c "$node" || true)
+  on_failed=$(.tools/kubectl get pods -l app=pod-server -o custom-columns=NODE:.spec.nodeName --no-headers | awk -v node="$node" '$1==node {n++} END {print n+0}')
   if [[ "$ready" == 3 && "$on_failed" == 0 ]]; then replaced=$(date +%s); break; fi
   sleep 1
 done

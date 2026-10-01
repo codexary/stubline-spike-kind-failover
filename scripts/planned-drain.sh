@@ -8,6 +8,7 @@ log=$(mktemp)
 cleanup() { .tools/kubectl uncordon "$node" >/dev/null 2>&1 || true; kill "$client" 2>/dev/null || true; wait "$client" 2>/dev/null || true; rm -f "$log"; }
 trap cleanup EXIT
 sleep 5
+grep -q 'status=200' "$log" || { echo 'Client never reached the Service' >&2; exit 1; }
 .tools/kubectl drain "$node" --ignore-daemonsets --delete-emptydir-data --timeout=180s
 .tools/kubectl rollout status deployment/pod-server --timeout=180s
 sleep 5
