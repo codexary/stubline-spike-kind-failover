@@ -5,10 +5,12 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Stateless HTTP responder that identifies its serving pod. */
 public final class PodServer implements AutoCloseable {
   private final HttpServer server;
+  private final AtomicBoolean ready = new AtomicBoolean(true);
 
   public PodServer(int port, String podName) throws IOException {
     server =
@@ -23,6 +25,11 @@ public final class PodServer implements AutoCloseable {
           String path = exchange.getRequestURI().getPath();
           if (!path.equals("/") && !path.equals("/ready") && !path.equals("/health")) {
             exchange.sendResponseHeaders(404, -1);
+            exchange.close();
+            return;
+          }
+          if (path.equals("/ready") && !ready.get()) {
+            exchange.sendResponseHeaders(503, -1);
             exchange.close();
             return;
           }
@@ -45,13 +52,15 @@ public final class PodServer implements AutoCloseable {
 
   @Override
   public void close() {
-    server.stop(0);
+    ready.set(false);
+    server.stop(5);
   }
 
   public static void main(String[] args) throws Exception {
     try (var server =
         new PodServer(8080, System.getenv().getOrDefault("HOSTNAME", "unknown-pod"))) {
       server.start();
+      Runtime.getRuntime().addShutdownHook(new Thread(server::close));
       new java.util.concurrent.CountDownLatch(1).await();
     }
   }

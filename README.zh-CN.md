@@ -20,6 +20,8 @@
 
 节点停止后不再发送 heartbeat。Kubernetes 等待检测超时才标记 `NotReady`；随后 pod 对 `node.kubernetes.io/unreachable` 的 NoExecute toleration 保留 10 秒，再被驱逐。普通默认值为 300 秒，会让这个演示长得多。实测时间及失败请求数取决于本机。PDB 只保证自愿驱逐不会使可用副本少于两个，不能保证真实故障中完全没有 HTTP 错误。与 Compose 的 inventory 副本 kill 相比，本项目增加节点 heartbeat 检测、taint 驱逐和在另一 worker 上重新调度。结论用于 Stubline 本地演练中的故障检测和值班讨论。
 
+不可达节点上的旧 pod 可能在 kubelet 恢复前一直保持 `Terminating`：control plane 无法知道断联机器上的进程是否仍活着。force deletion 只删除 API object，不会停止活进程。stateful workload 在替代实例接管存储或领导权前必须 fencing。`preStop` 等待五秒让 endpoint 更新传播，SIGTERM shutdown hook 排空进行中的请求。
+
 响应服务在本地运行时默认绑定回环地址。kind Deployment 仅在 Pod 内设置 `SPIKE_BIND_ADDRESS=0.0.0.0`，让集群 Service 可以访问；不会发布宿主机端口。
 
 ## 许可证

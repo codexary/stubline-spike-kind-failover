@@ -2,13 +2,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export KUBECONFIG="$PWD/.kube/config"
-.tools/kubectl port-forward service/pod-server 18084:80 >/tmp/stubline-kind-port-forward.log 2>&1 &
-forward=$!
-trap 'kill "$forward" 2>/dev/null || true; wait "$forward" 2>/dev/null || true' EXIT
-sleep 2
-while kill -0 "$forward" 2>/dev/null; do
-  code=$(curl --silent --max-time 1 -o /tmp/stubline-kind-response -w '%{http_code}' http://localhost:18084/ || echo 000)
-  body=$(cat /tmp/stubline-kind-response 2>/dev/null || true)
-  printf '%s status=%s pod=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$code" "$body"
-  sleep 0.1
-done
+name="pod-client-$$"
+cleanup() { .tools/kubectl delete pod "$name" --ignore-not-found --wait=false >/dev/null 2>&1 || true; }
+trap cleanup EXIT
+.tools/kubectl run "$name" --image=busybox:1.37.0-musl --restart=Never --overrides='{"spec":{"nodeSelector":{"kubernetes.io/hostname":"stubline-failover-worker2"}}}' --command -- sh -c '
+  while true; do
+    if body=$(wget -q -T 1 -O - http://pod-server/); then status=200; else status=000; body=; fi
+    printf "%s status=%s pod=%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$status" "$body"
+    sleep 0.1
+  done' >/dev/null
+.tools/kubectl wait --for=jsonpath='{.status.phase}'=Running "pod/$name" --timeout=60s >/dev/null
+.tools/kubectl logs -f "pod/$name" --timestamps=false

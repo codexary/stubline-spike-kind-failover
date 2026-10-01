@@ -20,12 +20,12 @@ done
 [[ -n "$not_ready" ]] || { echo 'Node never became NotReady' >&2; exit 1; }
 replaced=
 for i in {1..120}; do
-  ready=$(.tools/kubectl get deployment pod-server -o jsonpath='{.status.readyReplicas}')
-  on_failed=$(.tools/kubectl get pods -l app=pod-server -o custom-columns=NODE:.spec.nodeName --no-headers | awk -v node="$node" '$1==node {n++} END {print n+0}')
-  if [[ "$ready" == 3 && "$on_failed" == 0 ]]; then replaced=$(date +%s); break; fi
+  ready=$(.tools/kubectl get pods -l app=pod-server -o json | python3 -c 'import json,sys; pods=json.load(sys.stdin)["items"]; print(sum(p.get("metadata",{}).get("deletionTimestamp") is None and any(c.get("type")=="Ready" and c.get("status")=="True" for c in p.get("status",{}).get("conditions",[])) for p in pods))')
+  if [[ "$ready" == 3 ]]; then replaced=$(date +%s); break; fi
   sleep 1
 done
 [[ -n "$replaced" ]] || { echo 'Pods were not replaced' >&2; exit 1; }
 errors=$(grep -vc 'status=200' "$log" || true)
-printf 'NotReady after %ss; replacement after %ss; failed client requests=%s\n' "$((not_ready-start))" "$((replaced-start))" "$errors"
+terminating=$(.tools/kubectl get pods -l app=pod-server -o json | python3 -c 'import json,sys; print(sum(p.get("metadata",{}).get("deletionTimestamp") is not None for p in json.load(sys.stdin)["items"]))')
+printf 'NotReady after %ss; replacement after %ss; old Terminating pods=%s after %ss; failed client requests=%s\n' "$((not_ready-start))" "$((replaced-start))" "$terminating" "$(( $(date +%s)-start ))" "$errors"
 cat "$log"

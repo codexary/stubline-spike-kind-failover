@@ -14,5 +14,5 @@ grep -q 'status=200' "$log" || { echo 'Client never reached the Service' >&2; ex
 sleep 5
 errors=$(grep -vc 'status=200' "$log" || true)
 printf 'Planned drain failed client requests=%s\n' "$errors"
-[[ "$errors" == 0 ]]
 cat "$log"
+[[ "$errors" == 0 ]]
