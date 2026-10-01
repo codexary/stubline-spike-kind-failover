@@ -3,12 +3,18 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export KUBECONFIG="$PWD/.kube/config"
 node=stubline-failover-worker
+docker pull busybox:1.37.0-musl@sha256:8fddc201ee902ceabe7f766612d597201b70592e95451c9410f446440ef4786f >/dev/null
+.tools/kind load docker-image busybox:1.37.0-musl@sha256:8fddc201ee902ceabe7f766612d597201b70592e95451c9410f446440ef4786f --name stubline-failover
 log=$(mktemp)
 ./scripts/client.sh > "$log" & client=$!
 cleanup() { docker start "$node" >/dev/null 2>&1 || true; kill "$client" 2>/dev/null || true; wait "$client" 2>/dev/null || true; rm -f "$log"; }
 trap cleanup EXIT
-sleep 5
-grep -q 'status=200' "$log" || { echo 'Client never reached the Service' >&2; exit 1; }
+connected=
+for i in {1..60}; do
+  if grep -q 'status=200' "$log"; then connected=1; break; fi
+  sleep 1
+done
+[[ -n "$connected" ]] || { echo 'Client never reached the Service within 60s' >&2; exit 1; }
 start=$(date +%s)
 docker stop "$node" >/dev/null
 not_ready=

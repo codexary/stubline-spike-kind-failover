@@ -8,5 +8,6 @@ cleanup() { [[ ${success:-0} == 1 ]] || .tools/kind delete cluster --name stubli
 trap cleanup EXIT
 .tools/kind create cluster --name stubline-failover --config kind.yaml \
   --image 'kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5'
+.tools/kubectl wait --for=condition=Ready nodes --all --timeout=180s
 .tools/kubectl get nodes -o wide
 success=1
