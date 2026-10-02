@@ -1,0 +1,6 @@
+
+.mvn/maven.config
+.mvn/repository
+.mvn/wrapper/dists
+target
+.git

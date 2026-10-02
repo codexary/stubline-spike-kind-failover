@@ -2,6 +2,9 @@ English | [简体中文](README.zh-CN.md)
 
 # kind node failover spike
 
+BuildKit caches the Maven wrapper and dependencies under `/root/.m2` after copying the POM, so source edits reuse dependency resolution. Repeated builds are faster, download less, and cost less in CI.
+
+
 This independent spike extends Stubline's local replica drill to a real three-node Kubernetes cluster: one control plane and two workers. It uses kind v0.33.0, Kubernetes node image v1.37.0 (pinned digest), kubectl v1.37.1, and Java 21. `scripts/tools.sh` downloads the kind and kubectl binaries into ignored `.tools/` and verifies hard-coded SHA-256 checksums for macOS/Linux on arm64/amd64. No system-wide install is made. Every script exports `KUBECONFIG=$PWD/.kube/config`, so it never reads or writes the user's normal kubeconfig.
 
 From this repository root, with Docker running:

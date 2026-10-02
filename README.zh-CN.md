@@ -2,6 +2,9 @@
 
 # kind 节点故障小项目
 
+BuildKit 先复制 POM，再在 `/root/.m2` 缓存 Maven wrapper 和依赖；源码变更时可复用依赖解析。重复构建更快、下载更少，CI 成本也更低。
+
+
 这个独立小项目把 Stubline 的本地副本故障演练扩展到真实的三节点 Kubernetes cluster：一个 control plane、两个 worker。版本固定为 kind v0.33.0、Kubernetes node image v1.37.0（固定 digest）、kubectl v1.37.1 和 Java 21。`scripts/tools.sh` 将 kind、kubectl 下载到忽略的 `.tools/`，用内置 SHA-256 校验 macOS/Linux、arm64/amd64 的二进制文件，不做全局安装。每个脚本设置 `KUBECONFIG=$PWD/.kube/config`，不读写用户的普通 kubeconfig。
 
 在本仓库根目录、Docker 已启动时运行：
