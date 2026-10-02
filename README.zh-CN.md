@@ -18,6 +18,8 @@
 
 无状态 server 返回 pod 名。三个 Deployment 副本分散到两个 worker；readiness 和 liveness probe 控制 Service endpoints 与重启。`client.sh` 每 100 ms 打印时间、HTTP 状态及 pod 名；用 Ctrl-C 停止。`node-failure.sh` 停止一个 worker 的 Docker 容器，测量 Kubernetes 将节点标成 `NotReady`、三个副本在存活节点重新就绪的时间，并统计 client 失败请求。退出（包括错误退出）时会启动被停止的 worker。`planned-drain.sh` 有计划地 cordon 和 evict，等待替补，断言零失败请求，退出时 uncordon。PodDisruptionBudget 要求自愿驱逐期间至少两个副本可用；它不保护突发节点故障。
 
+两个演练都用固定 BusyBox base 的 `Dockerfile.client` 构建单平台的 `stubline-kind-client:0.1.0` image，并将它加载到 kind。client Pod 使用 `imagePullPolicy: Never`。单独运行 `client.sh` 前，先在本仓库根目录运行 `./scripts/load-client.sh`。
+
 节点停止后不再发送 heartbeat。Kubernetes 等待检测超时才标记 `NotReady`；随后 pod 对 `node.kubernetes.io/unreachable` 的 NoExecute toleration 保留 10 秒，再被驱逐。普通默认值为 300 秒，会让这个演示长得多。实测时间及失败请求数取决于本机。PDB 只保证自愿驱逐不会使可用副本少于两个，不能保证真实故障中完全没有 HTTP 错误。与 Compose 的 inventory 副本 kill 相比，本项目增加节点 heartbeat 检测、taint 驱逐和在另一 worker 上重新调度。结论用于 Stubline 本地演练中的故障检测和值班讨论。
 
 不可达节点上的旧 pod 可能在 kubelet 恢复前一直保持 `Terminating`：control plane 无法知道断联机器上的进程是否仍活着。force deletion 只删除 API object，不会停止活进程。stateful workload 在替代实例接管存储或领导权前必须 fencing。`preStop` 等待五秒让 endpoint 更新传播，SIGTERM shutdown hook 排空进行中的请求。

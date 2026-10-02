@@ -3,8 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export KUBECONFIG="$PWD/.kube/config"
 node=stubline-failover-worker
-docker pull busybox:1.37.0-musl@sha256:8fddc201ee902ceabe7f766612d597201b70592e95451c9410f446440ef4786f >/dev/null
-.tools/kind load docker-image busybox:1.37.0-musl@sha256:8fddc201ee902ceabe7f766612d597201b70592e95451c9410f446440ef4786f --name stubline-failover
+./scripts/load-client.sh
 log=$(mktemp)
 ./scripts/client.sh > "$log" & client=$!
 cleanup() { .tools/kubectl uncordon "$node" >/dev/null 2>&1 || true; kill "$client" 2>/dev/null || true; wait "$client" 2>/dev/null || true; rm -f "$log"; }
