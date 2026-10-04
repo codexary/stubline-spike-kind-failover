@@ -30,7 +30,7 @@ for i in {1..120}; do
   sleep 1
 done
 [[ -n "$replaced" ]] || { echo 'Pods were not replaced' >&2; exit 1; }
-errors=$(grep -vc 'status=200' "$log" || true)
+errors=$(awk '/status=/ && !/status=200([[:space:]]|$)/ { count++ } END { print count+0 }' "$log")
 terminating=$(.tools/kubectl get pods -l app=pod-server -o json | python3 -c 'import json,sys; print(sum(p.get("metadata",{}).get("deletionTimestamp") is not None for p in json.load(sys.stdin)["items"]))')
 printf 'NotReady after %ss; replacement after %ss; old Terminating pods=%s after %ss; failed client requests=%s\n' "$((not_ready-start))" "$((replaced-start))" "$terminating" "$(( $(date +%s)-start ))" "$errors"
 cat "$log"
