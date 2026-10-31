@@ -17,7 +17,7 @@ done
 .tools/kubectl drain "$node" --ignore-daemonsets --delete-emptydir-data --timeout=180s
 .tools/kubectl rollout status deployment/pod-server --timeout=180s
 sleep 5
-errors=$(grep -vc 'status=200' "$log" || true)
+errors=$(awk '/status=/ && !/status=200([[:space:]]|$)/ { count++ } END { print count+0 }' "$log")
 printf 'Planned drain failed client requests=%s\n' "$errors"
 cat "$log"
 [[ "$errors" == 0 ]]
